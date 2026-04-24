@@ -62,8 +62,14 @@ export default defineConfig({
       output: {
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-firebase': ['firebase'],
-          'vendor-supabase': ['@supabase/supabase-js'],
+          // ✅ Firebase: use subpackages, NOT bare 'firebase' import
+          'vendor-firebase': [
+            'firebase/app',
+            'firebase/auth',
+            'firebase/firestore',
+            'firebase/storage',
+          ],
+          // ✅ Supabase removed — you're not using it
           'vendor-charts': ['recharts', 'reactflow'],
           'vendor-utils': ['xlsx', 'papaparse', 'jspdf', 'html2canvas'],
           'vendor-ui': ['framer-motion', 'lucide-react'],
