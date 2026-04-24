@@ -1,0 +1,49 @@
+{
+    "name": "Vizassistance – AI Data Insights",
+    "short_name": "Vizassistance",
+    "description": "Upload your data and get instant AI-powered charts, insights, and visualizations.",
+    "theme_color": "#7c3aed",
+    "background_color": "#0a0a0f",
+    "display": "standalone",
+    "orientation": "portrait-primary",
+    "scope": "/",
+    "start_url": "/",
+    "icons": [
+        {
+            "src": "/pwa-icon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any"
+        },
+        {
+            "src": "/pwa-icon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "maskable"
+        },
+        {
+            "src": "/logo.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "Dashboard",
+            "short_name": "Dashboard",
+            "description": "Go to your dashboard",
+            "url": "/dashboard",
+            "icons": [
+                {
+                    "src": "/pwa-icon.svg",
+                    "sizes": "any"
+                }
+            ]
+        }
+    ],
+    "categories": [
+        "productivity",
+        "utilities"
+    ],
+    "lang": "en"
+}
