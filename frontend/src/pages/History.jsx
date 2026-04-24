@@ -1,36 +1,84 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Database, Calendar, Trash2, ArrowRight, Loader2, Search, FileText, ChevronRight } from 'lucide-react'
+import { Database, Calendar, Trash2, ArrowRight, Loader2, Search, FileText, ChevronRight, AlertTriangle, X } from 'lucide-react'
 import { db } from '../services/firebase'
 import { collection, query, where, getDocs, deleteDoc, doc, writeBatch } from 'firebase/firestore'
 import { useAuth } from '../context/AuthContext'
 import { motion, AnimatePresence } from 'framer-motion'
+
+// ── Delete Confirmation Dialog ────────────────────────────────────────
+const DeleteConfirmDialog = ({ isOpen, fileName, onConfirm, onCancel }) => (
+    <AnimatePresence>
+        {isOpen && (
+            <>
+                <motion.div
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    onClick={onCancel}
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
+                />
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                    transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                    className="fixed inset-0 z-[101] flex items-center justify-center p-4"
+                >
+                    <div className="bg-card border border-border rounded-[2rem] p-8 w-full max-w-sm shadow-2xl">
+                        <div className="flex justify-center mb-6">
+                            <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-2xl">
+                                <Trash2 className="h-8 w-8 text-red-400" />
+                            </div>
+                        </div>
+                        <div className="text-center mb-8">
+                            <h3 className="text-xl font-black text-foreground mb-2">Delete Dataset?</h3>
+                            <p className="text-zinc-500 text-sm">
+                                <span className="font-bold text-foreground">"{fileName}"</span> aur uske saare insights
+                                permanently delete ho jayenge. Ye action undo nahi ho sakta.
+                            </p>
+                        </div>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={onCancel}
+                                className="flex-1 py-3 rounded-2xl border border-border bg-muted hover:bg-muted/80 text-foreground font-bold text-sm transition-all flex items-center justify-center gap-2"
+                            >
+                                <X className="h-4 w-4" /> Cancel
+                            </button>
+                            <button
+                                onClick={onConfirm}
+                                className="flex-1 py-3 rounded-2xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-500 font-bold text-sm transition-all flex items-center justify-center gap-2"
+                            >
+                                <Trash2 className="h-4 w-4" /> Delete
+                            </button>
+                        </div>
+                    </div>
+                </motion.div>
+            </>
+        )}
+    </AnimatePresence>
+)
 
 const History = () => {
     const { user } = useAuth()
     const [datasets, setDatasets] = useState([])
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState('')
+    const [deleteDialog, setDeleteDialog] = useState({ open: false, id: null, fileName: '' })
+    const [deleting, setDeleting] = useState(false)
 
     useEffect(() => {
-        if (user) {
-            fetchHistory()
-        }
+        if (user) fetchHistory()
     }, [user])
 
     const fetchHistory = async () => {
         setLoading(true)
         try {
-            const q = query(
-                collection(db, 'datasets'),
-                where('user_id', '==', user.uid)
-            )
+            const q = query(collection(db, 'datasets'), where('user_id', '==', user.uid))
             const querySnapshot = await getDocs(q)
             const data = querySnapshot.docs
-                .map(doc => ({
-                    id: doc.id,
-                    ...doc.data(),
-                    upload_date: doc.data().upload_date?.toDate?.()?.toISOString() || new Date().toISOString()
+                .map(d => ({
+                    id: d.id,
+                    ...d.data(),
+                    upload_date: d.data().upload_date?.toDate?.()?.toISOString() || new Date().toISOString()
                 }))
                 .sort((a, b) => new Date(b.upload_date) - new Date(a.upload_date))
             setDatasets(data)
@@ -41,35 +89,40 @@ const History = () => {
         }
     }
 
-    const handleDelete = async (id) => {
-        if (!confirm('Are you sure you want to delete this dataset? All associated insights and charts will be lost.')) return
+    const openDeleteDialog = (id, fileName) => {
+        setDeleteDialog({ open: true, id, fileName })
+    }
 
+    const handleDeleteConfirmed = async () => {
+        setDeleting(true)
+        const id = deleteDialog.id
         try {
             const batch = writeBatch(db)
 
             // Delete insights
-            const insightsQuery = query(collection(db, 'insights'), where('dataset_id', '==', id))
-            const insightsSnap = await getDocs(insightsQuery)
-            insightsSnap.forEach(doc => batch.delete(doc.ref))
+            const insightsSnap = await getDocs(query(collection(db, 'insights'), where('dataset_id', '==', id)))
+            insightsSnap.forEach(d => batch.delete(d.ref))
 
             // Delete charts
-            const chartsQuery = query(collection(db, 'charts'), where('dataset_id', '==', id))
-            const chartsSnap = await getDocs(chartsQuery)
-            chartsSnap.forEach(doc => batch.delete(doc.ref))
+            const chartsSnap = await getDocs(query(collection(db, 'charts'), where('dataset_id', '==', id)))
+            chartsSnap.forEach(d => batch.delete(d.ref))
 
             // Delete dataset
             batch.delete(doc(db, 'datasets', id))
 
             await batch.commit()
-            setDatasets(datasets.filter(d => d.id !== id))
+            setDatasets(prev => prev.filter(d => d.id !== id))
+            setDeleteDialog({ open: false, id: null, fileName: '' })
         } catch (err) {
             console.error('Delete error:', err)
             alert(`Failed to delete: ${err.message || 'Unknown error'}`)
+        } finally {
+            setDeleting(false)
         }
     }
 
     const filteredDatasets = datasets.filter(d =>
-        d.file_name.toLowerCase().includes(searchTerm.toLowerCase())
+        d.file_name?.toLowerCase().includes(searchTerm.toLowerCase())
     )
 
     return (
@@ -94,7 +147,7 @@ const History = () => {
             {loading ? (
                 <div className="flex flex-col items-center justify-center py-20 bg-card border border-border rounded-[2.5rem]">
                     <Loader2 className="h-10 w-10 text-primary animate-spin mb-4" />
-                    <p className="text-zinc-500 font-bold uppercase tracking-widest text-xs">Retrieving Arvhives...</p>
+                    <p className="text-zinc-500 font-bold uppercase tracking-widest text-xs">Retrieving Archives...</p>
                 </div>
             ) : filteredDatasets.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -116,9 +169,11 @@ const History = () => {
                                     <div className="p-3 rounded-2xl bg-primary/10 text-primary group-hover:scale-110 transition-transform duration-300">
                                         <FileText className="h-6 w-6" />
                                     </div>
+                                    {/* ✅ Fixed delete button — now opens confirmation dialog */}
                                     <button
-                                        onClick={() => handleDelete(ds.id)}
-                                        className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
+                                        onClick={() => openDeleteDialog(ds.id, ds.file_name)}
+                                        className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all cursor-pointer z-10"
+                                        title="Delete dataset"
                                     >
                                         <Trash2 className="h-5 w-5" />
                                     </button>
@@ -160,6 +215,14 @@ const History = () => {
                     </Link>
                 </div>
             )}
+
+            {/* ✅ Delete confirmation dialog */}
+            <DeleteConfirmDialog
+                isOpen={deleteDialog.open}
+                fileName={deleteDialog.fileName}
+                onConfirm={handleDeleteConfirmed}
+                onCancel={() => !deleting && setDeleteDialog({ open: false, id: null, fileName: '' })}
+            />
         </div>
     )
 }
