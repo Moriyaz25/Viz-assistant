@@ -10,32 +10,35 @@ const DashboardLayout = ({ children }) => {
     const [isAIOpen, setIsAIOpen] = useState(false)
 
     return (
-        <div className="min-h-screen bg-background flex overflow-hidden font-sans">
+        <div className="min-h-screen flex overflow-hidden font-sans" style={{ background: 'hsl(30 8% 6%)' }}>
             <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
 
-            {/* Mobile Overlay */}
             {isSidebarOpen && (
-                <div
-                    className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 md:hidden"
-                    onClick={() => setIsSidebarOpen(false)}
-                />
+                <div className="fixed inset-0 z-40 md:hidden"
+                    style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+                    onClick={() => setIsSidebarOpen(false)} />
             )}
 
             <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden relative">
                 <DashboardNavbar onMenuClick={() => setIsSidebarOpen(true)} />
-                <main className="flex-1 p-6 md:p-8 overflow-y-auto w-full max-w-7xl mx-auto custom-scrollbar">
+                <main className="flex-1 p-5 md:p-7 overflow-y-auto w-full max-w-7xl mx-auto custom-scrollbar">
                     {children}
                 </main>
 
-                {/* AI Floating Toggle */}
                 <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+                    whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }}
                     onClick={() => setIsAIOpen(true)}
-                    className="fixed bottom-8 right-8 w-14 h-14 bg-gradient-to-tr from-violet-600 to-purple-500 rounded-full flex items-center justify-center shadow-xl shadow-violet-500/20 z-50 border border-white/10 group"
+                    className="fixed bottom-7 right-7 rounded-full flex items-center justify-center z-50 group"
+                    style={{
+                        background: 'linear-gradient(135deg, #F59E0B, #D97706)',
+                        boxShadow: '0 0 32px hsl(38 95% 50% / 0.45)',
+                        width: 52, height: 52,
+                        border: '1px solid hsl(38 95% 60% / 0.3)',
+                    }}
                 >
-                    <Sparkles className="h-6 w-6 text-white group-hover:rotate-12 transition-transform" />
-                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-[#0a0a0f] animate-pulse" />
+                    <Sparkles className="h-5 w-5 text-black group-hover:rotate-12 transition-transform" />
+                    <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-400 rounded-full border-2 animate-pulse"
+                        style={{ borderColor: 'hsl(30 8% 6%)' }} />
                 </motion.button>
 
                 <AIInsightSidebar isOpen={isAIOpen} onClose={() => setIsAIOpen(false)} />
@@ -45,5 +48,3 @@ const DashboardLayout = ({ children }) => {
 }
 
 export default DashboardLayout
-
-

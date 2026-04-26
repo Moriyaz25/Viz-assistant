@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useAuth } from '../context/AuthContext'
 import { useSearchParams, Link } from 'react-router-dom'
 import {
     TrendingUp, Loader2, AlertTriangle, Sparkles, Database, MessageSquare,
@@ -44,6 +45,7 @@ const InsightsPage = () => {
     const [downloading, setDownloading] = useState(false)
     const [showDownloadMenu, setShowDownloadMenu] = useState(false)
     const downloadMenuRef = useRef(null)
+    const { user } = useAuth()
 
     // ✅ Renamed from 'query' to 'chatQuery' to avoid conflict with Firestore's query import
     const [chatQuery, setChatQuery] = useState('')
@@ -103,6 +105,7 @@ const InsightsPage = () => {
                 try {
                     await addDoc(collection(db, 'insights'), {
                         dataset_id: datasetId,
+                        user_id: user?.uid || '',
                         summary_text: aiResult,
                         created_at: serverTimestamp()
                     })

@@ -1,6 +1,10 @@
+document.documentElement.classList.add('dark')
+document.documentElement.style.colorScheme = 'dark'
+
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ThemeProvider } from './context/ThemeContext'
+import Settings from './pages/Settings'
 import Landing from './pages/Landing'
 import Auth from './pages/Auth'
 import Dashboard from './pages/Dashboard'
@@ -35,6 +39,7 @@ function AnimatedRoutes() {
             <Route path="insights" element={<InsightsPage />} />
             <Route path="history" element={<History />} />
             <Route path="profile" element={<Profile />} />
+            <Route path="settings" element={<Settings />} />
             <Route path="modeler" element={<DataModeler />} />
             {/* Feature 6: Compare datasets */}
             <Route path="compare" element={<CompareDatasets />} />
