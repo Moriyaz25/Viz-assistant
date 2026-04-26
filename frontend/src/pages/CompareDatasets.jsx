@@ -1,16 +1,13 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { GitCompare, Loader2, Database, Plus, ArrowRight, TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { GitCompare, Loader2, TrendingUp, TrendingDown, Minus, ArrowRight } from 'lucide-react'
 import { db } from '../services/firebase'
 import { collection, query, where, getDocs } from 'firebase/firestore'
 import { useAuth } from '../context/AuthContext'
 import { generateInsights } from '../services/aiService'
 import ReactMarkdown from 'react-markdown'
 
-/**
- * Feature 6: Multi-Dataset Comparison Mode
- * Select 2 datasets, compare stats + AI analysis side-by-side
- */
+const AMB = '#F59E0B'
 
 function computeStats(data) {
     if (!data || data.length === 0) return {}
@@ -41,20 +38,30 @@ const StatCompareRow = ({ label, val1, val2 }) => {
     const n2 = Number(val2)
     const isNum = !isNaN(n1) && !isNaN(n2) && val1 !== undefined && val2 !== undefined
     const diff = isNum ? n2 - n1 : null
-    const pctDiff = isNum && n1 !== 0 ? ((diff / Math.abs(n1)) * 100).toFixed(1) : null
 
     return (
-        <div className="grid grid-cols-7 gap-2 items-center py-2 border-b border-border/50 last:border-0">
-            <div className="col-span-2 text-xs font-bold text-muted-foreground truncate">{label}</div>
-            <div className="col-span-2 text-xs font-black text-center bg-blue-500/10 rounded-lg py-1 px-2">{val1 ?? '—'}</div>
+        <div className="grid grid-cols-7 gap-2 items-center py-2.5"
+            style={{ borderBottom: '1px solid hsl(30 8% 13%)' }}>
+            <div className="col-span-2 text-[11px] font-bold truncate" style={{ color: 'hsl(30 8% 45%)' }}>{label}</div>
+            <div className="col-span-2 text-xs font-black text-center py-1.5 px-2 rounded-lg"
+                style={{ background: 'hsl(38 95% 50% / 0.1)', color: AMB, border: '1px solid hsl(38 95% 50% / 0.2)' }}>
+                {val1 ?? '—'}
+            </div>
             <div className="col-span-1 flex items-center justify-center">
                 {diff !== null ? (
-                    <span className={`text-[10px] font-black ${diff > 0 ? 'text-emerald-400' : diff < 0 ? 'text-red-400' : 'text-muted-foreground'}`}>
-                        {diff > 0 ? <TrendingUp className="h-3 w-3" /> : diff < 0 ? <TrendingDown className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
-                    </span>
-                ) : <ArrowRight className="h-3 w-3 text-muted-foreground" />}
+                    diff > 0
+                        ? <TrendingUp className="h-3.5 w-3.5" style={{ color: '#10B981' }} />
+                        : diff < 0
+                            ? <TrendingDown className="h-3.5 w-3.5" style={{ color: '#F87171' }} />
+                            : <Minus className="h-3.5 w-3.5" style={{ color: 'hsl(30 8% 40%)' }} />
+                ) : (
+                    <ArrowRight className="h-3.5 w-3.5" style={{ color: 'hsl(30 8% 40%)' }} />
+                )}
             </div>
-            <div className="col-span-2 text-xs font-black text-center bg-violet-500/10 rounded-lg py-1 px-2">{val2 ?? '—'}</div>
+            <div className="col-span-2 text-xs font-black text-center py-1.5 px-2 rounded-lg"
+                style={{ background: 'hsl(270 70% 60% / 0.1)', color: '#A78BFA', border: '1px solid hsl(270 70% 60% / 0.2)' }}>
+                {val2 ?? '—'}
+            </div>
         </div>
     )
 }
@@ -98,7 +105,6 @@ const CompareDatasets = () => {
             const s2 = computeStats(selected[1].raw_data)
             setComparison({ s1, s2 })
 
-            // AI comparison
             setAiLoading(true)
             const combinedData = [
                 ...((selected[0].raw_data || []).slice(0, 50).map(r => ({ _source: selected[0].file_name, ...r }))),
@@ -119,110 +125,188 @@ const CompareDatasets = () => {
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-[40vh]">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <Loader2 className="h-8 w-8 animate-spin" style={{ color: AMB }} />
             </div>
         )
     }
 
     return (
-        <div className="space-y-8">
-            <div>
-                <h1 className="text-3xl font-black">Compare Datasets</h1>
-                <p className="text-muted-foreground">Select two datasets to compare side-by-side with AI analysis</p>
-            </div>
+        <div className="space-y-6 pb-10">
+            {/* Header */}
+            <motion.header initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
+                <h1 className="font-black text-white" style={{ fontSize: 28, letterSpacing: '-0.03em' }}>
+                    Compare Datasets
+                </h1>
+                <p className="text-sm font-medium mt-1" style={{ color: 'hsl(30 8% 42%)' }}>
+                    Select two datasets to compare side-by-side with AI analysis
+                </p>
+            </motion.header>
 
             {/* Dataset selectors */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {[0, 1].map(idx => (
-                    <div key={idx} className={`bg-card border rounded-2xl p-5 ${idx === 0 ? 'border-blue-500/30' : 'border-violet-500/30'}`}>
-                        <div className="flex items-center gap-2 mb-3">
-                            <div className={`w-3 h-3 rounded-full ${idx === 0 ? 'bg-blue-500' : 'bg-violet-500'}`} />
-                            <p className="font-bold text-sm">Dataset {idx + 1}</p>
-                        </div>
-                        <select
-                            value={selected[idx]?.id || ''}
-                            onChange={e => handleSelect(idx, e.target.value)}
-                            className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
-                        >
-                            <option value="">Select a dataset...</option>
-                            {datasets
-                                .filter(d => d.id !== selected[idx === 0 ? 1 : 0]?.id)
-                                .map(d => (
-                                    <option key={d.id} value={d.id}>{d.file_name}</option>
-                                ))}
-                        </select>
-                        {selected[idx] && (
-                            <div className="mt-2 flex gap-2 text-[10px] text-muted-foreground">
-                                <span>{selected[idx].row_count?.toLocaleString()} rows</span>
-                                <span>·</span>
-                                <span>{selected[idx].column_count} columns</span>
+                {[0, 1].map(idx => {
+                    const accentColor = idx === 0 ? AMB : '#A78BFA'
+                    const accentBg = idx === 0 ? 'hsl(38 95% 50% / 0.08)' : 'hsl(270 70% 60% / 0.08)'
+                    const accentBorder = idx === 0 ? 'hsl(38 95% 50% / 0.25)' : 'hsl(270 70% 60% / 0.25)'
+
+                    return (
+                        <div key={idx} className="rounded-xl p-5"
+                            style={{ background: 'hsl(30 8% 9%)', border: `1px solid ${accentBorder}` }}>
+                            {/* Top accent line */}
+                            <div className="absolute top-0 left-0 right-0 h-[2px] rounded-t-xl"
+                                style={{ background: `linear-gradient(90deg, ${accentColor}60, transparent)` }} />
+
+                            <div className="flex items-center gap-2.5 mb-4">
+                                <div className="w-3 h-3 rounded-full" style={{ background: accentColor, boxShadow: `0 0 8px ${accentColor}80` }} />
+                                <p className="text-sm font-black text-white">Dataset {idx + 1}</p>
                             </div>
-                        )}
-                    </div>
-                ))}
+
+                            <select
+                                value={selected[idx]?.id || ''}
+                                onChange={e => handleSelect(idx, e.target.value)}
+                                className="w-full rounded-xl px-3 py-2.5 text-sm font-bold outline-none transition-all"
+                                style={{
+                                    background: 'hsl(30 8% 13%)',
+                                    border: `1px solid ${selected[idx] ? accentBorder : 'hsl(30 8% 18%)'}`,
+                                    color: selected[idx] ? 'hsl(40 15% 90%)' : 'hsl(30 8% 45%)',
+                                }}
+                            >
+                                <option value="">Select a dataset...</option>
+                                {datasets
+                                    .filter(d => d.id !== selected[idx === 0 ? 1 : 0]?.id)
+                                    .map(d => (
+                                        <option key={d.id} value={d.id}>{d.file_name}</option>
+                                    ))}
+                            </select>
+
+                            {selected[idx] && (
+                                <div className="mt-3 flex items-center gap-2">
+                                    <span className="text-[10px] font-bold px-2 py-1 rounded-full"
+                                        style={{ background: accentBg, color: accentColor, border: `1px solid ${accentBorder}` }}>
+                                        {selected[idx].row_count?.toLocaleString()} rows
+                                    </span>
+                                    <span className="text-[10px] font-bold px-2 py-1 rounded-full"
+                                        style={{ background: accentBg, color: accentColor, border: `1px solid ${accentBorder}` }}>
+                                        {selected[idx].column_count} cols
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                    )
+                })}
             </div>
 
+            {/* Compare button */}
             <button
                 onClick={handleCompare}
                 disabled={!selected[0] || !selected[1] || comparing}
-                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-violet-600 text-white rounded-2xl font-bold shadow-lg hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:pointer-events-none"
+                className="flex items-center gap-2.5 px-6 py-3 rounded-xl text-sm font-black transition-all disabled:opacity-40 disabled:pointer-events-none"
+                style={{
+                    background: 'linear-gradient(135deg, #F59E0B, #D97706)',
+                    color: 'hsl(30 10% 5%)',
+                    boxShadow: '0 0 20px hsl(38 95% 50% / 0.28)',
+                }}
+                onMouseEnter={e => { if (!e.currentTarget.disabled) e.currentTarget.style.boxShadow = '0 0 32px hsl(38 95% 50% / 0.5)' }}
+                onMouseLeave={e => e.currentTarget.style.boxShadow = '0 0 20px hsl(38 95% 50% / 0.28)'}
             >
-                {comparing ? <Loader2 className="h-5 w-5 animate-spin" /> : <GitCompare className="h-5 w-5" />}
+                {comparing
+                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                    : <GitCompare className="h-4 w-4" />}
                 {comparing ? 'Comparing...' : 'Compare Datasets'}
             </button>
 
             {/* Comparison results */}
             {comparison && (
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-                    {/* Overview stats */}
-                    <div className="bg-card border border-border rounded-2xl overflow-hidden">
-                        <div className="p-4 border-b border-border bg-muted/20">
-                            <div className="grid grid-cols-7 gap-2">
-                                <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Metric</div>
-                                <div className="col-span-2 text-center text-[10px] font-black uppercase tracking-widest text-blue-400 truncate">
-                                    {selected[0]?.file_name}
-                                </div>
-                                <div className="col-span-1" />
-                                <div className="col-span-2 text-center text-[10px] font-black uppercase tracking-widest text-violet-400 truncate">
-                                    {selected[1]?.file_name}
-                                </div>
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
+
+                    {/* Stats table */}
+                    <div className="rounded-xl overflow-hidden"
+                        style={{ background: 'hsl(30 8% 9%)', border: '1px solid hsl(30 8% 15%)' }}>
+
+                        {/* Table header */}
+                        <div className="grid grid-cols-7 gap-2 px-5 py-3"
+                            style={{ background: 'hsl(30 8% 11%)', borderBottom: '1px solid hsl(30 8% 14%)' }}>
+                            <div className="col-span-2 text-[9px] font-black uppercase tracking-[0.2em]"
+                                style={{ color: 'hsl(30 8% 38%)' }}>Metric</div>
+                            <div className="col-span-2 text-center text-[9px] font-black uppercase tracking-[0.15em] truncate"
+                                style={{ color: AMB }}>
+                                {selected[0]?.file_name?.replace(/\.[^.]+$/, '')}
+                            </div>
+                            <div className="col-span-1" />
+                            <div className="col-span-2 text-center text-[9px] font-black uppercase tracking-[0.15em] truncate"
+                                style={{ color: '#A78BFA' }}>
+                                {selected[1]?.file_name?.replace(/\.[^.]+$/, '')}
                             </div>
                         </div>
-                        <div className="p-4">
-                            <StatCompareRow label="Total Rows" val1={comparison.s1.rowCount} val2={comparison.s2.rowCount} />
+
+                        <div className="px-5 py-2">
+                            <StatCompareRow label="Total Rows"    val1={comparison.s1.rowCount} val2={comparison.s2.rowCount} />
                             <StatCompareRow label="Total Columns" val1={comparison.s1.colCount} val2={comparison.s2.colCount} />
                             {commonCols.slice(0, 8).map(col => {
                                 const c1 = comparison.s1.columns[col]
                                 const c2 = comparison.s2.columns[col]
-                                if (c1.type === 'numeric') {
-                                    return (
-                                        <StatCompareRow key={col + '_mean'} label={`${col} (avg)`} val1={c1.mean} val2={c2.mean} />
-                                    )
-                                }
-                                return (
-                                    <StatCompareRow key={col + '_unique'} label={`${col} (unique)`} val1={c1.unique} val2={c2.unique} />
-                                )
+                                return c1.type === 'numeric'
+                                    ? <StatCompareRow key={col + '_mean'}   label={`${col} (avg)`}    val1={c1.mean}   val2={c2.mean} />
+                                    : <StatCompareRow key={col + '_unique'} label={`${col} (unique)`} val1={c1.unique} val2={c2.unique} />
                             })}
                         </div>
                     </div>
 
                     {/* AI Comparative Insights */}
                     {(aiLoading || aiComparison) && (
-                        <div className="bg-card border border-border rounded-2xl p-6">
+                        <div className="rounded-xl p-6"
+                            style={{ background: 'hsl(30 8% 9%)', border: '1px solid hsl(38 95% 50% / 0.18)' }}>
+
+                            {/* Top glow line */}
+                            <div className="absolute top-0 left-0 right-0 h-[2px] rounded-t-xl"
+                                style={{ background: `linear-gradient(90deg, ${AMB}60, transparent)` }} />
+
                             <div className="flex items-center gap-3 mb-4">
-                                <div className="bg-primary/10 p-2 rounded-xl">
-                                    <TrendingUp className="h-5 w-5 text-primary" />
+                                <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+                                    style={{ background: 'hsl(38 95% 50% / 0.12)', border: '1px solid hsl(38 95% 50% / 0.2)' }}>
+                                    <TrendingUp className="h-4.5 w-4.5 h-[18px] w-[18px]" style={{ color: AMB }} />
                                 </div>
-                                <h3 className="font-black">AI Comparative Analysis</h3>
+                                <div>
+                                    <p className="text-sm font-black text-white">AI Comparative Analysis</p>
+                                    <p className="text-[10px] font-bold" style={{ color: 'hsl(30 8% 42%)' }}>
+                                        Powered by Gemini
+                                    </p>
+                                </div>
+                                <div className="ml-auto flex items-center gap-1 text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-full"
+                                    style={{ background: 'hsl(142 70% 45% / 0.12)', color: '#10B981', border: '1px solid hsl(142 70% 45% / 0.2)' }}>
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" />
+                                    Live
+                                </div>
                             </div>
+
                             {aiLoading ? (
-                                <div className="flex items-center gap-2 text-muted-foreground">
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                    <span className="text-sm">Generating comparative insights...</span>
+                                <div className="flex items-center gap-3 py-4" style={{ color: 'hsl(30 8% 45%)' }}>
+                                    <Loader2 className="h-4 w-4 animate-spin" style={{ color: AMB }} />
+                                    <span className="text-sm font-bold">Generating comparative insights...</span>
                                 </div>
                             ) : (
-                                <div className="prose dark:prose-invert max-w-none prose-p:leading-relaxed text-sm">
-                                    <ReactMarkdown>{aiComparison}</ReactMarkdown>
+                                <div className="text-sm font-medium leading-relaxed"
+                                    style={{ color: 'hsl(40 12% 80%)' }}>
+                                    <ReactMarkdown
+                                        components={{
+                                            p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
+                                            strong: ({ children }) => (
+                                                <strong className="font-black" style={{ color: 'hsl(40 15% 92%)' }}>{children}</strong>
+                                            ),
+                                            ul: ({ children }) => <ul className="space-y-1.5 ml-4 mb-3">{children}</ul>,
+                                            li: ({ children }) => (
+                                                <li className="flex items-start gap-2">
+                                                    <span className="mt-1.5 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: AMB }} />
+                                                    <span>{children}</span>
+                                                </li>
+                                            ),
+                                            h3: ({ children }) => (
+                                                <h3 className="text-sm font-black mb-2 mt-4 first:mt-0" style={{ color: AMB }}>{children}</h3>
+                                            ),
+                                        }}
+                                    >
+                                        {aiComparison}
+                                    </ReactMarkdown>
                                 </div>
                             )}
                         </div>
